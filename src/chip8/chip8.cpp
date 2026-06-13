@@ -1,5 +1,8 @@
 #include "chip8.hpp"
+#include "instruction.hpp"
 #include <fstream>
+#include <iostream>
+#include <print>
 
 namespace chip8 {
 std::expected<void, load_error>
@@ -20,54 +23,45 @@ emulator::load_cartridge(std::string_view file_path) {
   return {};
 }
 
-// TODO: refactor instruction handling, need a system where we can recognize
-// unrecognized instructions
 bool emulator::step_instruction() {
-  std::uint16_t instruction =
+  instruction_t instruction =
       (cpu.memory[cpu.pc] << 8) | cpu.memory[cpu.pc + 1];
-  std::uint16_t msb = instruction & 0xF000;
-  pc_modified = false;
   switch (instruction) {
-  case 0x00E0: {
+  case instruction_type::CLS: {
     cpu.display.fill(std::array<std::uint8_t, 64>{});
     break;
   }
-  case 0x00EE: {
+  case instruction_type::RET: {
     cpu.pc = cpu.stack[cpu.sp];
     cpu.sp--;
     pc_modified = true;
     break;
   }
-  }
-  switch (msb) {
-  case 0x1000: {
-    cpu.pc = (instruction & 0x0FFF);
+  case instruction_type::JP: {
+    cpu.pc = instruction.nnn;
     pc_modified = true;
     break;
   }
-  case 0x6000: {
-    cpu.registers[(instruction & 0x0F00) >> 0x8] = instruction & 0x00FF;
+  case instruction_type::LD_VX_BYTE: {
+    cpu.registers[instruction.x] = instruction.kk;
     break;
   }
-  case 0x7000: {
-    cpu.registers[(instruction & 0x0F00) >> 0x8] += instruction & 0x00FF;
+  case instruction_type::ADD_VX_BYTE: {
+    cpu.registers[instruction.x] += instruction.kk;
     break;
   }
-  case 0xA000: {
-    cpu.i = instruction & 0x0FFF;
+  case instruction_type::LD_I_ADDR: {
+    cpu.i = instruction.nnn;
     break;
   }
-  case 0xD000: {
-    uint8_t x_reg = (instruction & 0x0F00) >> 8;
-    uint8_t y_reg = (instruction & 0x00F0) >> 4;
-    uint8_t height = (instruction & 0x000F);
+  case instruction_type::DRW_VX_VY: {
 
-    uint8_t x_coord = cpu.registers[x_reg] % 64;
-    uint8_t y_coord = cpu.registers[y_reg] % 32;
+    uint8_t x_coord = cpu.registers[instruction.x] % 64;
+    uint8_t y_coord = cpu.registers[instruction.y] % 32;
 
     cpu.registers[0xF] = 0;
 
-    for (int row = 0; row < height; row++) {
+    for (int row = 0; row < instruction.n; row++) {
       uint8_t sprite_byte = cpu.memory[cpu.i + row];
 
       for (int col = 0; col < 8; col++) {
@@ -89,15 +83,21 @@ bool emulator::step_instruction() {
     cpu.draw_flag = true;
     break;
   }
+  default: {
+    std::println(std::cerr, "unrecognized instruction: {:#06x}",
+                 instruction.instruction);
+    return false;
   }
-  if (!pc_modified) {
+  }
+  if (!instruction.modifies_pc) {
     cpu.pc += 2;
   }
-  return false;
+  return true;
 }
 
 bool emulator::is_running() { return running; }
 bool emulator::can_render() { return cpu.draw_flag; }
+void emulator::stop() { running = false; }
 
 void emulator::render(window &window) {
   for (std::uint32_t y = 0; y < cpu.display.size(); ++y) {

@@ -33,6 +33,7 @@ public:
   void render(chip8::window &window);
   bool is_running();
   bool can_render();
+  void stop();
 
 private:
   chip8::cpu_t cpu{};

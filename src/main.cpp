@@ -1,4 +1,5 @@
 #include "chip8/chip8.hpp"
+#include <chrono>
 #include <print>
 #include <thread>
 #include <utility>
@@ -21,15 +22,21 @@ int main(int, char **) {
   }
   std::thread execution_thread([&] {
     while (emulator.is_running()) {
-      emulator.step_instruction();
+      if (!emulator.step_instruction()) {
+        emulator.stop();
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
   });
+  execution_thread.detach();
 
   chip8::window window;
-  while (window.is_running()) {
+  while (window.is_running() && emulator.is_running()) {
     window.handle_events();
     emulator.render(window);
   }
+
+  emulator.stop();
 
   if (execution_thread.joinable()) {
     execution_thread.join();
