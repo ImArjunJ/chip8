@@ -10,7 +10,7 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
-add_executable(chip8 src/main.cpp src/chip8/chip8.cpp)
+add_executable(chip8 src/main.cpp src/chip8/chip8.cpp src/chip8/window.cpp)
 target_link_libraries(chip8 PRIVATE sfml-graphics sfml-audio)
 
 
