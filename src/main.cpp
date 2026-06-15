@@ -1,46 +1,59 @@
 #include "chip8/chip8.hpp"
-#include <chrono>
+#include <iostream>
 #include <print>
-#include <thread>
 #include <utility>
-/*
-16-key hexadecimal keypad layout:
-1	2	3	C
-4	5	6	D
-7	8	9	E
-A	0	B	F
-*/
 
-int main(int, char **) {
-  // TODO: cli setup? arguments?
+using namespace std::chrono_literals;
+
+const std::uint32_t TARGET_CPU_HZ = 500;
+const std::uint32_t TARGET_TIMER_HZ = 60;
+
+int main(int argc, char **argv) {
+  if (argc < 2) {
+    std::println(std::cerr, "usage chip8 <file.ch8>");
+    return -1;
+  }
   chip8::emulator emulator;
-  auto status = emulator.load_cartridge("roms/ibm.ch8");
+  auto status = emulator.load_cartridge(argv[1]);
+
   if (!status) {
     std::println("load_cartridge error: {}",
                  std::to_underlying(status.error()));
     return -1;
   }
-  std::thread execution_thread([&] {
+
+  std::jthread execution_thread([&] {
     while (emulator.is_running()) {
-      if (!emulator.step_instruction()) {
-        emulator.stop();
-      }
-      std::this_thread::sleep_for(std::chrono::milliseconds(2));
+      auto wait_until =
+          std::chrono::steady_clock::now() + (1000000us / TARGET_CPU_HZ);
+      emulator.step_instruction();
+      std::this_thread::sleep_until(wait_until);
     }
   });
-  execution_thread.detach();
 
   chip8::window window;
   while (window.is_running() && emulator.is_running()) {
+    auto wait_until =
+        std::chrono::steady_clock::now() + (1000000us / TARGET_TIMER_HZ);
+
     window.handle_events();
+
+    if (emulator.get_sound_timer()) {
+      window.start_sound();
+    } else {
+      window.stop_sound();
+    }
+
+    for (const auto &[sf_key, chip8_key] : chip8::key_map) {
+      emulator.set_key(sf_key, window.get_keys()[static_cast<size_t>(sf_key)]);
+    }
+
+    emulator.decrement_timers();
     emulator.render(window);
+    std::this_thread::sleep_until(wait_until);
   }
 
   emulator.stop();
-
-  if (execution_thread.joinable()) {
-    execution_thread.join();
-  }
 
   return 0;
 }

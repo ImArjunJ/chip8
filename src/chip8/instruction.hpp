@@ -14,6 +14,7 @@ enum class instruction_type : std::uint16_t {
   LD_VX_BYTE,
   ADD_VX_BYTE,
   LD_VX_VY,
+  OR_VX_VY,
   AND_VX_VY,
   XOR_VX_VY,
   ADD_VX_VY,
@@ -71,15 +72,20 @@ struct instruction_t {
       break;
     }
     case 0x2: {
+      this->type = instruction_type::CALL;
+      this->modifies_pc = true;
       break;
     }
     case 0x3: {
+      this->type = instruction_type::SE_VX_BYTE;
       break;
     }
     case 0x4: {
+      this->type = instruction_type::SNE_VX_BYTE;
       break;
     }
     case 0x5: {
+      this->type = instruction_type::SE_VX_VY;
       break;
     }
     case 0x6: {
@@ -91,9 +97,48 @@ struct instruction_t {
       break;
     }
     case 0x8: {
+      switch (n) {
+      case 0x0: {
+        this->type = instruction_type::LD_VX_VY;
+        break;
+      }
+      case 0x1: {
+        this->type = instruction_type::OR_VX_VY;
+        break;
+      }
+      case 0x2: {
+        this->type = instruction_type::AND_VX_VY;
+        break;
+      }
+      case 0x3: {
+        this->type = instruction_type::XOR_VX_VY;
+        break;
+      }
+      case 0x4: {
+        this->type = instruction_type::ADD_VX_VY;
+        break;
+      }
+      case 0x5: {
+        this->type = instruction_type::SUB_VX_VY;
+        break;
+      }
+      case 0x6: {
+        this->type = instruction_type::SHR_VX_VY;
+        break;
+      }
+      case 0x7: {
+        this->type = instruction_type::SUBN_VX_VY;
+        break;
+      }
+      case 0xE: {
+        this->type = instruction_type::SHL_VX_VY;
+        break;
+      }
+      }
       break;
     }
     case 0x9: {
+      this->type = instruction_type::SNE_VX_VY;
       break;
     }
     case 0xA: {
@@ -101,9 +146,12 @@ struct instruction_t {
       break;
     }
     case 0xB: {
+      this->type = instruction_type::JP_V0_ADDR;
+      this->modifies_pc = true;
       break;
     }
     case 0xC: {
+      this->type = instruction_type::RND_VX_BYTE;
       break;
     }
     case 0xD: {
@@ -111,9 +159,57 @@ struct instruction_t {
       break;
     }
     case 0xE: {
+      switch (kk) {
+      case 0x9E: {
+        this->type = instruction_type::SKP_VX;
+        break;
+      }
+      case 0xA1: {
+        this->type = instruction_type::SKNP_VX;
+        break;
+      }
+      }
       break;
     }
     case 0xF: {
+      switch (kk) {
+      case 0x07: {
+        this->type = instruction_type::LD_VX_DT;
+        break;
+      }
+      case 0x0A: {
+        this->type = instruction_type::LD_VX_K;
+        break;
+      }
+      case 0x15: {
+        this->type = instruction_type::LD_DT_VX;
+        break;
+      }
+      case 0x65: {
+        this->type = instruction_type::LD_VX_I;
+        break;
+      }
+      case 0x18: {
+        this->type = instruction_type::LD_ST_VX;
+        break;
+      }
+      case 0x1E: {
+        this->type = instruction_type::ADD_I_VX;
+        break;
+      }
+      case 0x29: {
+        this->type = instruction_type::LD_F_VX;
+        break;
+      }
+      case 0x33: {
+        this->type = instruction_type::LD_B_VX;
+        break;
+      }
+      case 0x55: {
+        this->type = instruction_type::LD_I_VX;
+        break;
+      }
+      }
       break;
     }
     }
