@@ -31,14 +31,22 @@ enum class key_type : std::uint16_t {
 };
 
 inline std::unordered_map<sf::Keyboard::Key, key_type> key_map = {
-    {sf::Keyboard::Num1, key_type::ONE},   {sf::Keyboard::Num2, key_type::TWO},
-    {sf::Keyboard::Num3, key_type::THREE}, {sf::Keyboard::Num4, key_type::C},
-    {sf::Keyboard::Q, key_type::FOUR},     {sf::Keyboard::W, key_type::FIVE},
-    {sf::Keyboard::E, key_type::SIX},      {sf::Keyboard::R, key_type::D},
-    {sf::Keyboard::A, key_type::SEVEN},    {sf::Keyboard::S, key_type::EIGHT},
-    {sf::Keyboard::D, key_type::NINE},     {sf::Keyboard::F, key_type::E},
-    {sf::Keyboard::Z, key_type::A},        {sf::Keyboard::X, key_type::ZERO},
-    {sf::Keyboard::C, key_type::B},        {sf::Keyboard::V, key_type::F}};
+    {sf::Keyboard::Key::Num1, key_type::ONE},
+    {sf::Keyboard::Key::Num2, key_type::TWO},
+    {sf::Keyboard::Key::Num3, key_type::THREE},
+    {sf::Keyboard::Key::Num4, key_type::C},
+    {sf::Keyboard::Key::Q, key_type::FOUR},
+    {sf::Keyboard::Key::W, key_type::FIVE},
+    {sf::Keyboard::Key::E, key_type::SIX},
+    {sf::Keyboard::Key::R, key_type::D},
+    {sf::Keyboard::Key::A, key_type::SEVEN},
+    {sf::Keyboard::Key::S, key_type::EIGHT},
+    {sf::Keyboard::Key::D, key_type::NINE},
+    {sf::Keyboard::Key::F, key_type::E},
+    {sf::Keyboard::Key::Z, key_type::A},
+    {sf::Keyboard::Key::X, key_type::ZERO},
+    {sf::Keyboard::Key::C, key_type::B},
+    {sf::Keyboard::Key::V, key_type::F}};
 
 struct key_t {
   key_t() = default;

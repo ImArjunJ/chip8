@@ -15,10 +15,11 @@ public:
   void stop_sound();
 
 private:
-  sf::Sound create_buzzer();
+  void create_buzzer();
 
 private:
-  sf::Sound m_buzzer{};
+  sf::SoundBuffer m_buffer;
+  sf::Sound m_buzzer;
   sf::RenderWindow m_window;
   std::array<bool, 102> m_keys = {};
 };
