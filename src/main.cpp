@@ -30,8 +30,7 @@ int main(int argc, char **argv) {
       std::this_thread::sleep_until(wait_until);
     }
   });
-
-  chip8::window window;
+  chip8::window window{{1280, 720}};
   while (window.is_running() && emulator.is_running()) {
     auto wait_until =
         std::chrono::steady_clock::now() + (1000000us / TARGET_TIMER_HZ);
@@ -49,7 +48,11 @@ int main(int argc, char **argv) {
     }
 
     emulator.decrement_timers();
+
+    window.render_ui([] { ImGui::ShowDemoWindow(); });
+
     emulator.render(window);
+
     std::this_thread::sleep_until(wait_until);
   }
 
