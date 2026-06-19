@@ -1,4 +1,5 @@
 #include "chip8/chip8.hpp"
+#include "chip8/ui.hpp"
 #include <iostream>
 #include <print>
 #include <utility>
@@ -13,7 +14,8 @@ int main(int argc, char **argv) {
     std::println(std::cerr, "usage chip8 <file.ch8>");
     return -1;
   }
-  chip8::emulator emulator;
+
+  chip8::emulator emulator{};
   auto status = emulator.load_cartridge(argv[1]);
 
   if (!status) {
@@ -30,6 +32,7 @@ int main(int argc, char **argv) {
       std::this_thread::sleep_until(wait_until);
     }
   });
+
   chip8::window window{{1280, 720}};
   while (window.is_running() && emulator.is_running()) {
     auto wait_until =
@@ -49,7 +52,11 @@ int main(int argc, char **argv) {
 
     emulator.decrement_timers();
 
-    window.render_ui([] { ImGui::ShowDemoWindow(); });
+    const auto &cpu = emulator.get_cpu();
+    window.render_ui([&] {
+      chip8::ui::cpu_state(cpu);
+      chip8::ui::disassembly(cpu);
+    });
 
     emulator.render(window);
 
@@ -57,6 +64,5 @@ int main(int argc, char **argv) {
   }
 
   emulator.stop();
-
   return 0;
 }

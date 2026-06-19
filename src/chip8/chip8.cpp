@@ -444,4 +444,6 @@ void emulator::render(window &window) {
   cpu.draw_flag = false;
 }
 
+const cpu_t &emulator::get_cpu() const { return cpu; }
+
 } // namespace chip8

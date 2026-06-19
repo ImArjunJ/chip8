@@ -92,6 +92,7 @@ public:
   void set_key(key_t key, bool state);
   void decrement_timers();
   std::uint8_t get_sound_timer();
+  const cpu_t &get_cpu() const;
 
 private:
   chip8::cpu_t cpu{};

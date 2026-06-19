@@ -2,23 +2,34 @@
 #include "window.hpp"
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/VideoMode.hpp>
-#include <array>
-#include <functional>
 #include <imgui-SFML.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <iostream>
 #include <print>
 
 namespace chip8 {
+
 window::window(sf::Vector2u size) : m_buzzer(m_buffer) {
   m_window.create(sf::VideoMode({size.x, size.y}), "chip8", sf::Style::None);
-  this->create_buzzer();
+  create_buzzer();
   m_buzzer.setBuffer(m_buffer);
   m_buzzer.setLooping(true);
+
   if (!ImGui::SFML::Init(m_window)) {
     std::println(std::cerr, "failed to init imgui-sfml");
   }
-  ImGui::GetIO().IniFilename = NULL;
+
+  auto &io = ImGui::GetIO();
+  io.IniFilename = nullptr;
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+  apply_theme();
+
+  if (!m_display_texture.resize({64, 32})) {
+    std::println(std::cerr, "display texture resize failed");
+  }
+  m_display_texture.setSmooth(false);
 }
 
 bool window::is_running() { return m_window.isOpen(); }
@@ -28,11 +39,14 @@ void window::handle_events() {
     ImGui::SFML::ProcessEvent(m_window, *event);
     if (event->is<sf::Event::Closed>()) {
       m_window.close();
-    } else if (const auto *keyPressed = event->getIf<sf::Event::KeyPressed>()) {
-      m_keys[static_cast<std::size_t>(keyPressed->code)] = true;
-    } else if (const auto *keyReleased =
-                   event->getIf<sf::Event::KeyReleased>()) {
-      m_keys[static_cast<std::size_t>(keyReleased->code)] = false;
+    } else if (const auto *key = event->getIf<sf::Event::KeyPressed>()) {
+      auto code = static_cast<std::size_t>(key->code);
+      if (code < m_keys.size())
+        m_keys[code] = true;
+    } else if (const auto *key = event->getIf<sf::Event::KeyReleased>()) {
+      auto code = static_cast<std::size_t>(key->code);
+      if (code < m_keys.size())
+        m_keys[code] = false;
     }
   }
 }
@@ -41,39 +55,65 @@ std::array<bool, 102> window::get_keys() { return m_keys; }
 
 void window::render_ui(std::function<void()> callback) {
   ImGui::SFML::Update(m_window, m_clock.restart());
+  ImGuiID dockspace_id = ImGui::DockSpaceOverViewport();
+
+  if (m_first_frame) {
+    build_default_layout(dockspace_id);
+    m_first_frame = false;
+  }
+
   callback();
 }
 
+void window::build_default_layout(ImGuiID dockspace_id) {
+  ImGui::DockBuilderRemoveNode(dockspace_id);
+  ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_DockSpace);
+  ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
+
+  ImGuiID right;
+  ImGuiID left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left,
+                                             0.6f, nullptr, &right);
+
+  ImGuiID left_bottom;
+  ImGuiID left_top = ImGui::DockBuilderSplitNode(left, ImGuiDir_Up, 0.55f,
+                                                 nullptr, &left_bottom);
+
+  ImGui::DockBuilderDockWindow("Display", left_top);
+  ImGui::DockBuilderDockWindow("Disassembly", left_bottom);
+  ImGui::DockBuilderDockWindow("CPU", right);
+
+  ImGui::DockBuilderFinish(dockspace_id);
+}
+
 void window::render(std::array<std::array<std::uint8_t, 64>, 32> buffer) {
-  constexpr const std::uint32_t width = 64;
-  constexpr const std::uint32_t height = 32;
-  sf::Texture display_texture{};
-  if (!display_texture.resize({width, height})) {
-    std::println(std::cerr, "resize failed");
-  }
-  display_texture.setSmooth(false);
-  std::array<std::uint8_t, width * height * 4> pixels{};
-  for (int y = 0; y < height; y++) {
-    for (int x = 0; x < width; x++) {
-      int index = (y * width + x) * 4;
-      if (buffer[y][x] == 1) {
-        pixels[index + 0] = 255; // R
-        pixels[index + 1] = 255; // G
-        pixels[index + 2] = 255; // B
-        pixels[index + 3] = 255; // A
-      } else {
-        pixels[index + 0] = 0;   // R
-        pixels[index + 1] = 0;   // G
-        pixels[index + 2] = 0;   // B
-        pixels[index + 3] = 255; // A
-      }
+  constexpr std::uint32_t width = 64;
+  constexpr std::uint32_t height = 32;
+
+  for (std::uint32_t y = 0; y < height; y++) {
+    for (std::uint32_t x = 0; x < width; x++) {
+      auto index = (y * width + x) * 4;
+      std::uint8_t value = buffer[y][x] ? 255 : 0;
+      m_pixels[index + 0] = value;
+      m_pixels[index + 1] = value;
+      m_pixels[index + 2] = value;
+      m_pixels[index + 3] = 255;
     }
   }
-  display_texture.update(pixels.data());
-  ImGui::SetNextWindowSize({640, 320}, ImGuiCond_FirstUseEver);
-  ImGui::Begin("chip8 display");
-  ImGui::Image(display_texture, ImGui::GetContentRegionAvail());
+  m_display_texture.update(m_pixels.data());
+
+  ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+  ImGui::Begin("Display");
+  ImVec2 avail = ImGui::GetContentRegionAvail();
+  float scale = std::min(avail.x / width, avail.y / height);
+  ImVec2 size(width * scale, height * scale);
+  ImVec2 cursor = ImGui::GetCursorPos();
+  cursor.x += (avail.x - size.x) * 0.5f;
+  cursor.y += (avail.y - size.y) * 0.5f;
+  ImGui::SetCursorPos(cursor);
+  ImGui::Image(m_display_texture, size);
   ImGui::End();
+  ImGui::PopStyleVar();
+
   m_window.clear();
   ImGui::SFML::Render();
   m_window.display();
@@ -89,16 +129,54 @@ void window::stop_sound() { m_buzzer.stop(); }
 
 void window::create_buzzer() {
   std::vector<std::int16_t> samples(44100 / 10);
-  for (size_t i = 0; i < samples.size(); ++i) {
+  for (std::size_t i = 0; i < samples.size(); ++i) {
     samples[i] = ((i / 50) % 2 == 0) ? 5000 : -5000;
   }
 
   const std::vector<sf::SoundChannel> channel_map = {sf::SoundChannel::Mono};
-
-  auto result = m_buffer.loadFromSamples(samples.data(), samples.size(), 1,
-                                         44100, channel_map);
-  if (!result) {
+  if (!m_buffer.loadFromSamples(samples.data(), samples.size(), 1, 44100,
+                                channel_map)) {
     std::println(std::cerr, "loadFromSamples failed");
   }
 }
+
+void window::apply_theme() {
+  auto &style = ImGui::GetStyle();
+  style.WindowRounding = 0.0f;
+  style.FrameRounding = 2.0f;
+  style.GrabRounding = 2.0f;
+  style.WindowBorderSize = 1.0f;
+  style.FramePadding = ImVec2(6, 4);
+  style.ItemSpacing = ImVec2(8, 6);
+
+  auto *c = style.Colors;
+  c[ImGuiCol_WindowBg] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+  c[ImGuiCol_ChildBg] = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+  c[ImGuiCol_PopupBg] = ImVec4(0.04f, 0.04f, 0.04f, 0.95f);
+  c[ImGuiCol_Border] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+  c[ImGuiCol_FrameBg] = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+  c[ImGuiCol_FrameBgHovered] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+  c[ImGuiCol_FrameBgActive] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+  c[ImGuiCol_TitleBg] = ImVec4(0.04f, 0.04f, 0.04f, 1.00f);
+  c[ImGuiCol_TitleBgActive] = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+  c[ImGuiCol_MenuBarBg] = ImVec4(0.05f, 0.05f, 0.05f, 1.00f);
+  c[ImGuiCol_Header] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+  c[ImGuiCol_HeaderHovered] = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
+  c[ImGuiCol_HeaderActive] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+  c[ImGuiCol_Button] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+  c[ImGuiCol_ButtonHovered] = ImVec4(0.25f, 0.25f, 0.25f, 1.00f);
+  c[ImGuiCol_ButtonActive] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+  c[ImGuiCol_Tab] = ImVec4(0.08f, 0.08f, 0.08f, 1.00f);
+  c[ImGuiCol_TabHovered] = ImVec4(0.20f, 0.20f, 0.20f, 1.00f);
+  c[ImGuiCol_TabSelected] = ImVec4(0.15f, 0.15f, 0.15f, 1.00f);
+  c[ImGuiCol_DockingPreview] = ImVec4(0.40f, 0.40f, 0.40f, 0.70f);
+  c[ImGuiCol_SeparatorHovered] = ImVec4(0.30f, 0.30f, 0.30f, 1.00f);
+  c[ImGuiCol_SeparatorActive] = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
+  c[ImGuiCol_Text] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+  c[ImGuiCol_TextDisabled] = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+  c[ImGuiCol_CheckMark] = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+  c[ImGuiCol_SliderGrab] = ImVec4(0.40f, 0.40f, 0.40f, 1.00f);
+  c[ImGuiCol_SliderGrabActive] = ImVec4(0.55f, 0.55f, 0.55f, 1.00f);
+}
+
 } // namespace chip8

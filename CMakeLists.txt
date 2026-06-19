@@ -13,7 +13,7 @@ FetchContent_MakeAvailable(SFML)
 FetchContent_Declare(
   imgui
   GIT_REPOSITORY https://github.com/ocornut/imgui
-  GIT_TAG v1.91.8
+  GIT_TAG v1.91.8-docking
 )
 
 FetchContent_MakeAvailable(imgui)
@@ -29,7 +29,5 @@ set(IMGUI_SFML_IMGUI_DEMO ON)
 
 FetchContent_MakeAvailable(imgui-sfml)
 
-add_executable(chip8 src/main.cpp src/chip8/chip8.cpp src/chip8/window.cpp)
+add_executable(chip8 src/main.cpp src/chip8/chip8.cpp src/chip8/window.cpp src/chip8/ui.cpp)
 target_link_libraries(chip8 PRIVATE ImGui-SFML::ImGui-SFML sfml-audio)
-
-
