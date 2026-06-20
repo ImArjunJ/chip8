@@ -186,7 +186,8 @@ void cpu_state(const cpu_t &cpu) {
       for (int col = 0; col < bytes_per_row; col++) {
         int byte_addr = addr + col;
         bool is_pc = (byte_addr == cpu.pc || byte_addr == cpu.pc + 1);
-        bool is_i = (byte_addr >= cpu.i && byte_addr < cpu.i + 16 && cpu.i != 0);
+        bool is_i =
+            (byte_addr >= cpu.i && byte_addr < cpu.i + 16 && cpu.i != 0);
 
         if (is_pc)
           ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));

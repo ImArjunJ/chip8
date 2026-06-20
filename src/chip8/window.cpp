@@ -72,8 +72,8 @@ void window::build_default_layout(ImGuiID dockspace_id) {
   ImGui::DockBuilderSetNodeSize(dockspace_id, ImGui::GetMainViewport()->Size);
 
   ImGuiID right;
-  ImGuiID left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left,
-                                             0.5f, nullptr, &right);
+  ImGuiID left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.5f,
+                                             nullptr, &right);
 
   ImGui::DockBuilderDockWindow("Display", left);
   ImGui::DockBuilderDockWindow("Disassembly", right);
